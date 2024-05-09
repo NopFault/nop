@@ -1,0 +1,32 @@
+# Golden ticket
+.ssh/
+phpmyadmin/
+.ssh/id_rsa
+.gitignore
+.git/
+.git/config
+.htpasswd
+backup.zip
+old.zip
+new.zip
+site.sql.rar
+site.sql.tgz
+old/
+demo/
+
+
+# Wordpress
+wp-json/wp/v2/users
+wp-config.php.old
+wp-config.php_old
+
+
+# DB Backups
+db_backup.sql
+db_backup.rar
+db_backup.sql.tar
+db_backup.tar.gz
+db_backup.tar.bzip2
+db_backup.tar
+db_backup.sql.bz2
+db_backup.7z
