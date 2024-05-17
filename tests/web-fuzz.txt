@@ -39,8 +39,10 @@ wp-content/uploads/
 wp-content/uploads/backups/
 wordpress-scan.zip 
 wp-admin/debug.log
-wp-blog-header.phpwp-config.ORIGINAL
-wp-config.originalwp-config.php.BACK
+wp-blog-header.php
+wp-config.ORIGINAL
+wp-config.origina
+wp-config.php.BACK
 wp-config.php.COPY
 wp-config.php.ORIG
 wp-config.php.SAVE
