@@ -1,25 +1,57 @@
 # Golden ticket
-.ssh/
-phpmyadmin/
 .ssh/id_rsa
 .gitignore
-.git/
-.git/config
 .htpasswd
+.htaccess
 backup.zip
+key.pem
+cert.pem
+id_rsa
 old.zip
 new.zip
 site.sql.rar
 site.sql.tgz
 old/
+test/
+new/
+.ssh/
+phpmyadmin/
+.git/config
 demo/
-
+config/
+config/keys/
+config/keys/key.pem
+config/keys/cert.pem
+keys/
+keys/key.pem
+keys/cert.pem
 
 # Wordpress
 wp-json/wp/v2/users
 wp-config.php.old
 wp-config.php_old
-
+wp_config.php~
+.wp_config.php.swp
+wp-content/
+wp-content/backups/
+wp-content/plugins/
+wp-content/uploads/
+wp-content/uploads/backups/
+wordpress-scan.zip 
+wp-admin/debug.log
+wp-blog-header.phpwp-config.ORIGINAL
+wp-config.originalwp-config.php.BACK
+wp-config.php.COPY
+wp-config.php.ORIG
+wp-config.php.SAVE
+wp-config.php.TEST
+wp-config.php._INC
+wp-config.php._inc
+wp-config.php.back
+wp-config.php.copy
+wp-config.php.orig
+wp-config.php.save
+wp-config.php.test
 
 # DB Backups
 db_backup.sql
@@ -30,3 +62,11 @@ db_backup.tar.bzip2
 db_backup.tar
 db_backup.sql.bz2
 db_backup.7z
+db-backup.sql
+db-backup.rar
+db-backup.sql.tar
+db-backup.tar.gz
+db-backup.tar.bzip2
+db-backup.tar
+db-backup.sql.bz2
+db-backup.7z
