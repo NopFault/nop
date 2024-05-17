@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,10 +18,11 @@ import (
 )
 
 type Fuzz struct {
-	where    string
-	method   string
-	redirect string
-	ua       string
+	where     string
+	method    string
+	redirect  bool
+	ua        string
+	random_ua bool
 }
 
 var fuzzCmd = &cobra.Command{
@@ -29,10 +31,11 @@ var fuzzCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		url, _ := cmd.Flags().GetString("url")
 		method, _ := cmd.Flags().GetString("method")
-		redirect, _ := cmd.Flags().GetString("follow-redirect")
+		redirect, _ := cmd.Flags().GetBool("follow-redirect")
 		delay, _ := cmd.Flags().GetString("delay")
 		statuses, _ := cmd.Flags().GetString("visible-statuses")
 		ua, _ := cmd.Flags().GetString("ua")
+		random_ua, _ := cmd.Flags().GetBool("random-ua")
 		wordfile, _ := cmd.Flags().GetString("dict")
 
 		wordlist, err := os.Open(wordfile)
@@ -54,10 +57,11 @@ var fuzzCmd = &cobra.Command{
 
 			if len(word) > 0 && string(word[0]) != "#" {
 				var fuzzer Fuzz = Fuzz{
-					where:    strings.Replace(url, "[NOP]", word, -1),
-					method:   method,
-					redirect: redirect,
-					ua:       ua,
+					where:     strings.Replace(url, "[NOP]", word, -1),
+					method:    method,
+					redirect:  redirect,
+					random_ua: random_ua,
+					ua:        ua,
 				}
 
 				status, bytes, hash := fuzzer.Contents()
@@ -88,12 +92,53 @@ var fuzzCmd = &cobra.Command{
 	},
 }
 
+func getRandomUA() string {
+	var agents []string = []string{
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
+		"Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36",
+		"Mozilla/5.0 (iPad; CPU OS 9_3_2 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13F69 Safari/601.1",
+		"Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.0; Trident/5.0)",
+		"Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
+		"Mozilla/5.0 (Windows NT 6.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
+		"Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
+		"Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 13; SM-A536U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 12; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 10; VOG-L29) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 11; Redmi Note 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (iPhone14,6; U; CPU iPhone OS 15_4 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/19E241 Safari/602.1",
+		"Mozilla/5.0 (iPhone14,3; U; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/19A346 Safari/602.1",
+		"Mozilla/5.0 (iPhone13,2; U; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/15E148 Safari/602.1",
+		"Mozilla/5.0 (Windows Phone 10.0; Android 6.0.1; Microsoft; RM-1152) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Mobile Safari/537.36 Edge/15.15254",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9",
+		"Mozilla/5.0 (PlayStation; PlayStation 5/2.26) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0 Safari/605.1.15",
+		"Mozilla/5.0 (PlayStation 4 3.11) AppleWebKit/537.73 (KHTML, like Gecko)",
+		"Mozilla/5.0 (PlayStation Vita 3.61) AppleWebKit/537.73 (KHTML, like Gecko) Silk/3.2",
+		"Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Xbox; Xbox One) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Mobile Safari/537.36 Edge/13.10586",
+		"Mozilla/5.0 (Linux; U; en-US) AppleWebKit/528.5+ (KHTML, like Gecko, Safari/528.5+) Version/4.0 Kindle/3.0 (screen 600x800; rotate)",
+		"Mozilla/5.0 (iPhone12,1; U; CPU iPhone OS 13_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/15E148 Safari/602.1",
+	}
+
+	nth := rand.Int() % len(agents)
+	return agents[nth]
+}
+
 func (f *Fuzz) Contents() (int, int, string) {
 	req, err := http.NewRequest(f.method, f.where, nil)
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Set("User-Agent", f.ua)
+
+	if f.random_ua == true {
+		req.Header.Set("User-Agent", getRandomUA())
+	} else {
+		req.Header.Set("User-Agent", f.ua)
+	}
 
 	// to prevent EOF
 	req.Close = true
@@ -107,7 +152,7 @@ func (f *Fuzz) Contents() (int, int, string) {
 
 	client.Timeout = 10 * time.Second
 	client.Transport = tr
-	if f.redirect == "false" {
+	if f.redirect == false {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
@@ -141,8 +186,9 @@ func init() {
 	fuzzCmd.PersistentFlags().String("ua", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:94.0) Gecko/20100101 Firefox/94.0", "Custom user agent")
 	fuzzCmd.PersistentFlags().String("delay", "", "Add delay for each request")
 	fuzzCmd.PersistentFlags().String("visible-statuses", "", "Show just specific statuses like: 200,500,403")
-	fuzzCmd.PersistentFlags().String("follow-redirect", "false", "Follow redirects like 301,302")
+	fuzzCmd.PersistentFlags().Bool("follow-redirect", false, "Follow redirects like 301,302")
 	fuzzCmd.PersistentFlags().String("dict", "", "Dictionary file")
+	fuzzCmd.PersistentFlags().Bool("random-ua", false, "Dictionary file")
 
 	fuzzCmd.MarkPersistentFlagRequired("url")
 	fuzzCmd.MarkPersistentFlagRequired("dict")
