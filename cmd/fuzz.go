@@ -89,12 +89,11 @@ var fuzzCmd = &cobra.Command{
 					codeScanner := bufio.NewScanner(codeList)
 					codeScanner.Split(bufio.ScanLines)
 
-					fmt.Printf("    Look for code snippets (%s):\n", inCodeFile)
 					for codeScanner.Scan() {
 						response := string(bytes[:])
 						codeText := codeScanner.Text()
 						if strings.Contains(response, codeText) {
-							fmt.Printf("        - Found [%s]\n", codeText)
+							fmt.Printf("\n    - Found snippet: [%s]\n", codeText)
 						}
 					}
 
