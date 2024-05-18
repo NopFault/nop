@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -29,7 +32,7 @@ var fuzzCmd = &cobra.Command{
 	Use:   "fuzz",
 	Short: "Simple web fuzzer.",
 	Run: func(cmd *cobra.Command, args []string) {
-		url, _ := cmd.Flags().GetString("url")
+		urlInput, _ := cmd.Flags().GetString("url")
 		method, _ := cmd.Flags().GetString("method")
 		redirect, _ := cmd.Flags().GetBool("follow-redirect")
 		delay, _ := cmd.Flags().GetString("delay")
@@ -53,12 +56,16 @@ var fuzzCmd = &cobra.Command{
 			ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:94.0) Gecko/20100101 Firefox/94.0"
 		}
 
+		domain, ips := getIP(urlInput)
+
+		fmt.Printf("---------[ NOP ]---------\n - Start fuzz on %s [%s]\n\n", domain, ips)
+
 		for wordScanner.Scan() {
 			var word string = wordScanner.Text()
 
 			if len(word) > 0 && string(word[0]) != "#" {
 				var fuzzer Fuzz = Fuzz{
-					where:     strings.Replace(url, "[NOP]", word, -1),
+					where:     strings.Replace(urlInput, "[NOP]", word, -1),
 					method:    method,
 					redirect:  redirect,
 					random_ua: random_ua,
@@ -70,14 +77,14 @@ var fuzzCmd = &cobra.Command{
 
 				if len(statuses) > 0 {
 					if len(strings.Split(statuses, strconv.Itoa(status))) >= 2 {
-						fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(url, "[NOP]", word))
+						fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
 						fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
-						fmt.Printf("    Time: (%s)\n", time.Since(startingTime))
+						fmt.Printf("    Time: %s\n", time.Since(startingTime))
 					}
 				} else {
-					fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(url, "[NOP]", word))
+					fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
 					fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
-					fmt.Printf("    Time: (%s)\n", time.Since(startingTime))
+					fmt.Printf("    Time: %s\n", time.Since(startingTime))
 				}
 
 				if len(inCodeFile) > 0 {
@@ -115,10 +122,30 @@ var fuzzCmd = &cobra.Command{
 	},
 }
 
+func getIP(urlInput string) (string, string) {
+	url, err := url.Parse(urlInput)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var ips []string
+	var domain string = strings.TrimPrefix(url.Hostname(), "www.")
+
+	netIP, _ := net.LookupIP(domain)
+	for _, ip := range netIP {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			ips = append(ips, ipv4.String())
+		}
+		if ipv6 := ip.To16(); ipv6 != nil {
+			ips = append(ips, ipv6.String())
+		}
+	}
+	return domain, strings.Join(ips, ", ")
+}
+
 func getRandomUA() string {
 	var agents []string = []string{
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
-		"Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1",
+		"Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/201:00101 Firefox/7.0.1",
 		"Mozilla/5.0 (Windows NT 6.1; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0",
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36",
 		"Mozilla/5.0 (iPad; CPU OS 9_3_2 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13F69 Safari/601.1",
