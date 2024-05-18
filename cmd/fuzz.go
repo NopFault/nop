@@ -37,6 +37,7 @@ var fuzzCmd = &cobra.Command{
 		ua, _ := cmd.Flags().GetString("ua")
 		random_ua, _ := cmd.Flags().GetBool("random-ua")
 		wordfile, _ := cmd.Flags().GetString("dict")
+		inCodeFile, _ := cmd.Flags().GetString("in-code")
 
 		wordlist, err := os.Open(wordfile)
 		if err != nil {
@@ -64,16 +65,39 @@ var fuzzCmd = &cobra.Command{
 					ua:        ua,
 				}
 
+				startingTime := time.Now()
 				status, bytes, hash := fuzzer.Contents()
 
 				if len(statuses) > 0 {
 					if len(strings.Split(statuses, strconv.Itoa(status))) >= 2 {
-						fmt.Printf("- URL [%s]\n", strings.Replace(url, "[NOP]", word, -1))
-						fmt.Printf("    %s: %s (%s)\n\n", strconv.Itoa(status), hash, strconv.Itoa(bytes))
+						fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(url, "[NOP]", word))
+						fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
+						fmt.Printf("    Time: (%s)\n", time.Since(startingTime))
 					}
 				} else {
-					fmt.Printf("- URL [%s]\n", strings.Replace(url, "[NOP]", word, -1))
-					fmt.Printf("    %s: %s (%s)\n\n", strconv.Itoa(status), hash, strconv.Itoa(bytes))
+					fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(url, "[NOP]", word))
+					fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
+					fmt.Printf("    Time: (%s)\n", time.Since(startingTime))
+				}
+
+				if len(inCodeFile) > 0 {
+					codeList, err := os.Open(inCodeFile)
+					if err != nil {
+						fmt.Printf("\n\n[ERROR]: Cannot read code file: %s\n\n", inCodeFile)
+						os.Exit(1)
+					}
+					codeScanner := bufio.NewScanner(codeList)
+					codeScanner.Split(bufio.ScanLines)
+
+					fmt.Printf("    Look for code snippets (%s):\n", inCodeFile)
+					for codeScanner.Scan() {
+						response := string(bytes[:])
+						codeText := codeScanner.Text()
+						if strings.Contains(response, codeText) {
+							fmt.Printf("        - Found [%s]\n", codeText)
+						}
+					}
+
 				}
 
 				if len(delay) > 0 {
@@ -128,7 +152,7 @@ func getRandomUA() string {
 	return agents[nth]
 }
 
-func (f *Fuzz) Contents() (int, int, string) {
+func (f *Fuzz) Contents() (int, []byte, string) {
 	req, err := http.NewRequest(f.method, f.where, nil)
 	if err != nil {
 		panic(err)
@@ -160,13 +184,12 @@ func (f *Fuzz) Contents() (int, int, string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, 0, ""
+		return 0, []byte{}, ""
 	}
 
 	defer resp.Body.Close()
 
 	b, _ := io.ReadAll(resp.Body)
-	bytes := len(b)
 
 	var hash string = ""
 	if f.method != "HEAD" {
@@ -175,7 +198,7 @@ func (f *Fuzz) Contents() (int, int, string) {
 		hash = hex.EncodeToString(hasher.Sum(nil))
 	}
 
-	return resp.StatusCode, bytes, hash
+	return resp.StatusCode, b, hash
 }
 
 func init() {
@@ -189,6 +212,7 @@ func init() {
 	fuzzCmd.PersistentFlags().Bool("follow-redirect", false, "Follow redirects like 301,302")
 	fuzzCmd.PersistentFlags().String("dict", "", "Dictionary file")
 	fuzzCmd.PersistentFlags().Bool("random-ua", false, "Dictionary file")
+	fuzzCmd.PersistentFlags().String("in-code", "", "To search some data in code")
 
 	fuzzCmd.MarkPersistentFlagRequired("url")
 	fuzzCmd.MarkPersistentFlagRequired("dict")

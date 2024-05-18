@@ -1,8 +1,10 @@
+/
 # Golden ticket
 .ssh/id_rsa
 .gitignore
 .htpasswd
 .htaccess
+adminer.php
 backup.zip
 key.pem
 cert.pem
@@ -37,7 +39,7 @@ wp-content/backups/
 wp-content/plugins/
 wp-content/uploads/
 wp-content/uploads/backups/
-wordpress-scan.zip 
+wordpress-scan.zip
 wp-admin/debug.log
 wp-blog-header.php
 wp-config.ORIGINAL
@@ -62,6 +64,7 @@ db_backup.sql.tar
 db_backup.tar.gz
 db_backup.tar.bzip2
 db_backup.tar
+db_backup.zip
 db_backup.sql.bz2
 db_backup.7z
 db-backup.sql
@@ -70,5 +73,6 @@ db-backup.sql.tar
 db-backup.tar.gz
 db-backup.tar.bzip2
 db-backup.tar
+db-backup.zip
 db-backup.sql.bz2
 db-backup.7z
