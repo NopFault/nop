@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -35,7 +36,7 @@ var fuzzCmd = &cobra.Command{
 		urlInput, _ := cmd.Flags().GetString("url")
 		method, _ := cmd.Flags().GetString("method")
 		redirect, _ := cmd.Flags().GetBool("follow-redirect")
-		delay, _ := cmd.Flags().GetString("delay")
+		// delay, _ := cmd.Flags().GetString("delay")
 		statuses, _ := cmd.Flags().GetString("visible-statuses")
 		ua, _ := cmd.Flags().GetString("ua")
 		random_ua, _ := cmd.Flags().GetBool("random-ua")
@@ -60,6 +61,12 @@ var fuzzCmd = &cobra.Command{
 
 		fmt.Printf("---------[ NOP ]---------\n - Start fuzz on %s [%s]\n\n", domain, ips)
 
+		var wg sync.WaitGroup
+
+		// Use a buffered channel to limit the number of concurrent goroutines
+		const maxConcurrentGoroutines = 10
+		semaphore := make(chan struct{}, maxConcurrentGoroutines)
+
 		for wordScanner.Scan() {
 			var word string = wordScanner.Text()
 
@@ -72,50 +79,60 @@ var fuzzCmd = &cobra.Command{
 					ua:        ua,
 				}
 
-				startingTime := time.Now()
-				status, bytes, hash := fuzzer.Contents()
+				wg.Add(1)
+				semaphore <- struct{}{}
 
-				if len(statuses) > 0 {
-					if len(strings.Split(statuses, strconv.Itoa(status))) >= 2 {
+				go func(fuzzer Fuzz) {
+					startingTime := time.Now()
+					status, bytes, hash := fuzzer.Contents()
+
+					if len(statuses) > 0 {
+						if len(strings.Split(statuses, strconv.Itoa(status))) >= 2 {
+							fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
+							fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
+							fmt.Printf("    Time: %s\n", time.Since(startingTime))
+						}
+					} else {
 						fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
 						fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
 						fmt.Printf("    Time: %s\n", time.Since(startingTime))
 					}
-				} else {
-					fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
-					fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
-					fmt.Printf("    Time: %s\n", time.Since(startingTime))
-				}
 
-				if len(inCodeFile) > 0 {
-					codeList, err := os.Open(inCodeFile)
-					if err != nil {
-						fmt.Printf("\n\n[ERROR]: Cannot read code file: %s\n\n", inCodeFile)
-						os.Exit(1)
-					}
-					codeScanner := bufio.NewScanner(codeList)
-					codeScanner.Split(bufio.ScanLines)
-
-					for codeScanner.Scan() {
-						response := string(bytes[:])
-						codeText := codeScanner.Text()
-						if strings.Contains(response, codeText) {
-							fmt.Printf("\n    - Found snippet: [%s]\n", codeText)
+					if len(inCodeFile) > 0 {
+						codeList, err := os.Open(inCodeFile)
+						if err != nil {
+							fmt.Printf("\n\n[ERROR]: Cannot read code file: %s\n\n", inCodeFile)
+							os.Exit(1)
 						}
-					}
+						codeScanner := bufio.NewScanner(codeList)
+						codeScanner.Split(bufio.ScanLines)
 
-				}
+						for codeScanner.Scan() {
+							response := string(bytes[:])
+							codeText := codeScanner.Text()
+							if strings.Contains(response, codeText) {
+								fmt.Printf("\n    - Found snippet: [%s]\n", codeText)
+							}
+						}
 
-				if len(delay) > 0 {
-					v, err := strconv.Atoi(delay)
-					if err != nil {
-						fmt.Printf("\n\n[ERROR]: Cannot convert delay: %s\n\n", delay)
-						os.Exit(1)
 					}
-					if v > 0 {
-						time.Sleep(time.Duration(v) * time.Second)
-					}
-				}
+					defer func() { <-semaphore }()
+					defer wg.Done()
+				}(fuzzer)
+
+				go func() {
+					wg.Wait()
+				}()
+				//if len(delay) > 0 {
+				//	v, err := strconv.Atoi(delay)
+				//	if err != nil {
+				//		fmt.Printf("\n\n[ERROR]: Cannot convert delay: %s\n\n", delay)
+				//		os.Exit(1)
+				//	}
+				//	if v > 0 {
+				//		time.Sleep(time.Duration(v) * time.Second)
+				//	}
+				//}
 			}
 
 		}
