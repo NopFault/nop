@@ -88,14 +88,10 @@ var fuzzCmd = &cobra.Command{
 
 					if len(statuses) > 0 {
 						if len(strings.Split(statuses, strconv.Itoa(status))) >= 2 {
-							fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
-							fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
-							fmt.Printf("    Time: %s\n", time.Since(startingTime))
+							fmt.Printf("\n- URL [%s]\n\t%s: %s (%s)\n\tTime: %s\n", strings.ReplaceAll(urlInput, "[NOP]", word), strconv.Itoa(status), hash, strconv.Itoa(len(bytes)), time.Since(startingTime))
 						}
 					} else {
-						fmt.Printf("\n- URL [%s]\n", strings.ReplaceAll(urlInput, "[NOP]", word))
-						fmt.Printf("    %s: %s (%s)\n", strconv.Itoa(status), hash, strconv.Itoa(len(bytes)))
-						fmt.Printf("    Time: %s\n", time.Since(startingTime))
+						fmt.Printf("\n- URL [%s]\n\t%s: %s (%s)\n\tTime: %s\n", strings.ReplaceAll(urlInput, "[NOP]", word), strconv.Itoa(status), hash, strconv.Itoa(len(bytes)), time.Since(startingTime))
 					}
 
 					if len(inCodeFile) > 0 {
